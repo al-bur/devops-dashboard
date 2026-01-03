@@ -11,7 +11,8 @@ import {
   CheckCircle2,
   XCircle,
   Loader2,
-  Circle
+  Circle,
+  EyeOff
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -25,6 +26,7 @@ interface ProjectCardProps {
   supabaseStatus?: ServiceStatus
   onDeploy?: () => void
   onTriggerAction?: () => void
+  onHide?: () => void
   loading?: boolean
   deploying?: boolean
   triggering?: boolean
@@ -71,6 +73,7 @@ export function ProjectCard({
   supabaseStatus = 'unknown',
   onDeploy,
   onTriggerAction,
+  onHide,
   loading,
   deploying,
   triggering
@@ -153,6 +156,14 @@ export function ProjectCard({
             <Play className="h-4 w-4 mr-1" />
           )}
           Run Action
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onHide}
+          className="ml-auto text-muted-foreground hover:text-destructive"
+        >
+          <EyeOff className="h-4 w-4" />
         </Button>
       </CardFooter>
     </Card>

@@ -13,7 +13,9 @@ import {
   AlertTriangle,
   Rocket,
   GitBranch,
-  Server
+  Server,
+  Eye,
+  Settings
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -47,10 +49,14 @@ interface ProjectStatus {
   }
 }
 
+const HIDDEN_PROJECTS_KEY = 'devops-dashboard-hidden-projects'
+
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [projects, setProjects] = useState<Project[]>([])
+  const [hiddenProjects, setHiddenProjects] = useState<string[]>([])
+  const [showHiddenPanel, setShowHiddenPanel] = useState(false)
   const [stats, setStats] = useState<DashboardStats>({
     totalUsers: 0,
     todaySignups: 0,
@@ -63,6 +69,36 @@ export default function DashboardPage() {
   const [healthChecks, setHealthChecks] = useState<HealthCheckResult[]>([])
   const [deployingProject, setDeployingProject] = useState<string | null>(null)
   const [triggeringProject, setTriggeringProject] = useState<string | null>(null)
+
+  // Load hidden projects from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem(HIDDEN_PROJECTS_KEY)
+    if (saved) {
+      setHiddenProjects(JSON.parse(saved))
+    }
+  }, [])
+
+  // Save hidden projects to localStorage
+  const saveHiddenProjects = (ids: string[]) => {
+    localStorage.setItem(HIDDEN_PROJECTS_KEY, JSON.stringify(ids))
+    setHiddenProjects(ids)
+  }
+
+  const handleHideProject = (projectId: string) => {
+    const updated = [...hiddenProjects, projectId]
+    saveHiddenProjects(updated)
+    toast.success('Project hidden')
+  }
+
+  const handleUnhideProject = (projectId: string) => {
+    const updated = hiddenProjects.filter(id => id !== projectId)
+    saveHiddenProjects(updated)
+    toast.success('Project restored')
+  }
+
+  // Filter visible projects
+  const visibleProjects = projects.filter(p => !hiddenProjects.includes(p.id))
+  const hiddenProjectsList = projects.filter(p => hiddenProjects.includes(p.id))
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -252,17 +288,61 @@ export default function DashboardPage() {
 
         {/* Projects Grid */}
         <section>
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Rocket className="h-5 w-5 text-muted-foreground" />
-            Projects
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Rocket className="h-5 w-5 text-muted-foreground" />
+              Projects
+              <span className="text-sm font-normal text-muted-foreground">
+                ({visibleProjects.length})
+              </span>
+            </h2>
+            {hiddenProjectsList.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowHiddenPanel(!showHiddenPanel)}
+                className="text-muted-foreground"
+              >
+                <Settings className="h-4 w-4 mr-1" />
+                {hiddenProjectsList.length} hidden
+              </Button>
+            )}
+          </div>
+
+          {/* Hidden Projects Panel */}
+          {showHiddenPanel && hiddenProjectsList.length > 0 && (
+            <Card className="mb-4 border-dashed">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Hidden Projects
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-wrap gap-2">
+                {hiddenProjectsList.map((project) => (
+                  <Button
+                    key={project.id}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleUnhideProject(project.id)}
+                    className="text-xs"
+                  >
+                    <Eye className="h-3 w-3 mr-1" />
+                    {project.name}
+                  </Button>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {projects.length === 0 && !loading && (
+            {visibleProjects.length === 0 && !loading && (
               <div className="col-span-full text-center py-8 text-muted-foreground">
-                No projects found. Make sure VERCEL_TOKEN is configured.
+                {projects.length === 0
+                  ? 'No projects found. Make sure VERCEL_TOKEN is configured.'
+                  : 'All projects are hidden. Click "hidden" button to restore.'}
               </div>
             )}
-            {projects.map((project) => (
+            {visibleProjects.map((project) => (
               <ProjectCard
                 key={project.id}
                 name={project.name}
@@ -272,6 +352,7 @@ export default function DashboardPage() {
                 supabaseStatus={projectStatuses[project.id]?.supabase || 'unknown'}
                 onDeploy={() => handleDeploy(project.id)}
                 onTriggerAction={() => handleTriggerAction(project.id)}
+                onHide={() => handleHideProject(project.id)}
                 loading={loading}
                 deploying={deployingProject === project.id}
                 triggering={triggeringProject === project.id}
