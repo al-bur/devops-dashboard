@@ -30,37 +30,6 @@ import type {
   HealthCheckResult
 } from "@/types/project"
 
-// Project configuration - customize your projects here
-const PROJECTS: Project[] = [
-  {
-    id: 'web-bbibbi',
-    name: 'Web Bbibbi',
-    vercelProjectId: 'prj_xxx', // Replace with actual
-    githubRepo: 'luke-sonnet/web-bbibbi',
-    supabaseProjectRef: 'mjnqkjzkzafpxcemnhsc',
-    url: 'https://web-bbibbi.vercel.app',
-    healthCheckUrl: 'https://web-bbibbi.vercel.app/api/health'
-  },
-  {
-    id: 'fitmate',
-    name: 'FitMate',
-    vercelProjectId: 'prj_xxx',
-    githubRepo: 'luke-sonnet/fitmate',
-    supabaseProjectRef: 'mjnqkjzkzafpxcemnhsc',
-    url: 'https://fitmate.vercel.app',
-    healthCheckUrl: 'https://fitmate.vercel.app/api/health'
-  },
-  {
-    id: 'daily-ok',
-    name: 'Daily OK',
-    vercelProjectId: 'prj_xxx',
-    githubRepo: 'luke-sonnet/daily-ok',
-    supabaseProjectRef: 'mjnqkjzkzafpxcemnhsc',
-    url: 'https://daily-ok.vercel.app',
-    healthCheckUrl: 'https://daily-ok.vercel.app/api/health'
-  }
-]
-
 interface DashboardStats {
   totalUsers: number
   todaySignups: number
@@ -81,11 +50,12 @@ interface ProjectStatus {
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [projects, setProjects] = useState<Project[]>([])
   const [stats, setStats] = useState<DashboardStats>({
     totalUsers: 0,
     todaySignups: 0,
     activeUsers: 0,
-    totalProjects: PROJECTS.length
+    totalProjects: 0
   })
   const [projectStatuses, setProjectStatuses] = useState<ProjectStatus>({})
   const [errorLogs, setErrorLogs] = useState<ErrorLog[]>([])
@@ -96,6 +66,14 @@ export default function DashboardPage() {
 
   const fetchDashboardData = useCallback(async () => {
     try {
+      // Fetch projects from Vercel
+      const projectsRes = await fetch('/api/projects')
+      if (projectsRes.ok) {
+        const projectsData = await projectsRes.json()
+        setProjects(projectsData.projects || [])
+        setStats(prev => ({ ...prev, totalProjects: projectsData.total || 0 }))
+      }
+
       // Fetch stats
       const statsRes = await fetch('/api/stats')
       if (statsRes.ok) {
@@ -179,7 +157,7 @@ export default function DashboardPage() {
   const handleTriggerAction = async (projectId: string) => {
     setTriggeringProject(projectId)
     try {
-      const project = PROJECTS.find(p => p.id === projectId)
+      const project = projects.find(p => p.id === projectId)
       if (!project) return
 
       const res = await fetch('/api/github/trigger', {
@@ -279,7 +257,12 @@ export default function DashboardPage() {
             Projects
           </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {PROJECTS.map((project) => (
+            {projects.length === 0 && !loading && (
+              <div className="col-span-full text-center py-8 text-muted-foreground">
+                No projects found. Make sure VERCEL_TOKEN is configured.
+              </div>
+            )}
+            {projects.map((project) => (
               <ProjectCard
                 key={project.id}
                 name={project.name}
