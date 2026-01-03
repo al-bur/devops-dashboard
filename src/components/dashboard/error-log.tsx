@@ -67,7 +67,7 @@ export function ErrorLogViewer({ logs, loading, maxHeight = "300px" }: ErrorLogV
   }
 
   return (
-    <ScrollArea className="pr-4" style={{ maxHeight }}>
+    <ScrollArea className="pr-4" style={{ height: maxHeight }}>
       <div className="space-y-1">
         {logs.map((log) => (
           <div

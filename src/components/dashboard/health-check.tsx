@@ -47,7 +47,7 @@ export function HealthCheck({ checks, loading, maxHeight = "400px" }: HealthChec
   }
 
   return (
-    <ScrollArea className="pr-4" style={{ maxHeight }}>
+    <ScrollArea className="pr-4" style={{ height: maxHeight }}>
       <div className="space-y-1">
         {checks.map((check) => (
           <div

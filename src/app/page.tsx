@@ -390,7 +390,7 @@ export default function DashboardPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <HealthCheck checks={healthChecks} loading={loading} />
+                  <HealthCheck checks={healthChecks} loading={loading} maxHeight="400px" />
                 </CardContent>
               </Card>
             </TabsContent>
