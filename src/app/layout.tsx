@@ -19,6 +19,24 @@ export const metadata: Metadata = {
   icons: {
     icon: "/icon.svg",
   },
+  metadataBase: new URL("https://devops-dashboard-pi.vercel.app"),
+  openGraph: {
+    type: "website",
+    locale: "ko_KR",
+    url: "https://devops-dashboard-pi.vercel.app",
+    siteName: "DevOps Dashboard",
+    title: "DevOps Dashboard",
+    description: "Monitor all your projects in one place - Vercel, GitHub Actions, Supabase",
+  },
+  twitter: {
+    card: "summary",
+    title: "DevOps Dashboard",
+    description: "Monitor all your projects in one place",
+  },
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default function RootLayout({
