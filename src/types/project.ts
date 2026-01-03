@@ -49,6 +49,7 @@ export interface SupabaseStats {
 
 export interface HealthCheckResult {
   url: string
+  name?: string
   status: 'healthy' | 'unhealthy' | 'checking'
   responseTime?: number
   lastChecked?: string

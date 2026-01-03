@@ -1,14 +1,45 @@
 import { NextResponse } from 'next/server'
 import type { HealthCheckResult } from '@/types/project'
 
-// Configure health check endpoints
-const HEALTH_ENDPOINTS = [
-  'https://web-bbibbi.vercel.app',
-  'https://fitmate.vercel.app',
-  'https://daily-ok.vercel.app'
-]
+const VERCEL_TOKEN = process.env.VERCEL_TOKEN
+const VERCEL_TEAM_ID = process.env.VERCEL_TEAM_ID
 
-async function checkHealth(url: string): Promise<HealthCheckResult> {
+interface VercelProject {
+  id: string
+  name: string
+  targets?: {
+    production?: {
+      alias?: string[]
+    }
+  }
+  latestDeployments?: Array<{
+    url?: string
+  }>
+}
+
+async function fetchVercelProjects(): Promise<VercelProject[]> {
+  if (!VERCEL_TOKEN) return []
+
+  try {
+    const url = VERCEL_TEAM_ID
+      ? `https://api.vercel.com/v9/projects?teamId=${VERCEL_TEAM_ID}&limit=100`
+      : `https://api.vercel.com/v9/projects?limit=100`
+
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${VERCEL_TOKEN}` },
+      next: { revalidate: 60 }
+    })
+
+    if (!res.ok) return []
+
+    const data = await res.json()
+    return data.projects || []
+  } catch {
+    return []
+  }
+}
+
+async function checkHealth(url: string, name: string): Promise<HealthCheckResult> {
   const startTime = Date.now()
 
   try {
@@ -28,6 +59,7 @@ async function checkHealth(url: string): Promise<HealthCheckResult> {
     if (res.ok) {
       return {
         url,
+        name,
         status: 'healthy',
         responseTime,
         lastChecked: new Date().toISOString()
@@ -36,6 +68,7 @@ async function checkHealth(url: string): Promise<HealthCheckResult> {
 
     return {
       url,
+      name,
       status: 'unhealthy',
       responseTime,
       lastChecked: new Date().toISOString()
@@ -46,6 +79,7 @@ async function checkHealth(url: string): Promise<HealthCheckResult> {
 
     return {
       url,
+      name,
       status: 'unhealthy',
       responseTime,
       lastChecked: new Date().toISOString()
@@ -55,8 +89,24 @@ async function checkHealth(url: string): Promise<HealthCheckResult> {
 
 export async function GET() {
   try {
+    // Fetch all projects from Vercel dynamically
+    const vercelProjects = await fetchVercelProjects()
+
+    // Get production URLs for each project
+    const healthEndpoints = vercelProjects
+      .map(p => {
+        const productionUrl = p.targets?.production?.alias?.[0]
+          ? `https://${p.targets.production.alias[0]}`
+          : p.latestDeployments?.[0]?.url
+            ? `https://${p.latestDeployments[0].url}`
+            : null
+
+        return productionUrl ? { url: productionUrl, name: p.name } : null
+      })
+      .filter((endpoint): endpoint is { url: string; name: string } => endpoint !== null)
+
     const results = await Promise.all(
-      HEALTH_ENDPOINTS.map((url) => checkHealth(url))
+      healthEndpoints.map(({ url, name }) => checkHealth(url, name))
     )
 
     return NextResponse.json(results)

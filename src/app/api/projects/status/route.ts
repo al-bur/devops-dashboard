@@ -2,21 +2,41 @@ import { NextResponse } from 'next/server'
 
 const VERCEL_TOKEN = process.env.VERCEL_TOKEN
 const VERCEL_TEAM_ID = process.env.VERCEL_TEAM_ID
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN
 
 type ServiceStatus = 'live' | 'building' | 'error' | 'unknown'
 
-interface ProjectConfig {
+interface VercelProject {
   id: string
-  vercelProjectId?: string
-  githubRepo?: string
+  name: string
+  link?: {
+    type: string
+    repo?: string
+    org?: string
+  }
 }
 
-// Configure your projects here (should match page.tsx)
-const PROJECTS: ProjectConfig[] = [
-  { id: 'web-bbibbi', vercelProjectId: 'web-bbibbi', githubRepo: 'luke-sonnet/web-bbibbi' },
-  { id: 'fitmate', vercelProjectId: 'fitmate', githubRepo: 'luke-sonnet/fitmate' },
-  { id: 'daily-ok', vercelProjectId: 'daily-ok', githubRepo: 'luke-sonnet/daily-ok' }
-]
+async function fetchVercelProjects(): Promise<VercelProject[]> {
+  if (!VERCEL_TOKEN) return []
+
+  try {
+    const url = VERCEL_TEAM_ID
+      ? `https://api.vercel.com/v9/projects?teamId=${VERCEL_TEAM_ID}&limit=100`
+      : `https://api.vercel.com/v9/projects?limit=100`
+
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${VERCEL_TOKEN}` },
+      next: { revalidate: 60 }
+    })
+
+    if (!res.ok) return []
+
+    const data = await res.json()
+    return data.projects || []
+  } catch {
+    return []
+  }
+}
 
 async function getVercelStatus(projectId: string): Promise<ServiceStatus> {
   if (!VERCEL_TOKEN) return 'unknown'
@@ -57,7 +77,6 @@ async function getVercelStatus(projectId: string): Promise<ServiceStatus> {
 }
 
 async function getGitHubActionsStatus(repo: string): Promise<ServiceStatus> {
-  const GITHUB_TOKEN = process.env.GITHUB_TOKEN
   if (!GITHUB_TOKEN) return 'unknown'
 
   try {
@@ -99,19 +118,27 @@ async function getGitHubActionsStatus(repo: string): Promise<ServiceStatus> {
 
 export async function GET() {
   try {
+    // Fetch all projects from Vercel dynamically
+    const vercelProjects = await fetchVercelProjects()
+
     const statuses: Record<string, { vercel: ServiceStatus; github: ServiceStatus; supabase: ServiceStatus }> = {}
 
     await Promise.all(
-      PROJECTS.map(async (project) => {
+      vercelProjects.map(async (project) => {
+        // Get GitHub repo if connected
+        const githubRepo = project.link?.type === 'github' && project.link.org && project.link.repo
+          ? `${project.link.org}/${project.link.repo}`
+          : undefined
+
         const [vercelStatus, githubStatus] = await Promise.all([
-          project.vercelProjectId ? getVercelStatus(project.vercelProjectId) : 'unknown' as ServiceStatus,
-          project.githubRepo ? getGitHubActionsStatus(project.githubRepo) : 'unknown' as ServiceStatus
+          getVercelStatus(project.id),
+          githubRepo ? getGitHubActionsStatus(githubRepo) : Promise.resolve('unknown' as ServiceStatus)
         ])
 
         statuses[project.id] = {
           vercel: vercelStatus,
           github: githubStatus,
-          supabase: 'live' // Supabase is generally always available
+          supabase: 'live' // Supabase status assumed live (no direct API)
         }
       })
     )
