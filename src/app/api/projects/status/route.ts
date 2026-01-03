@@ -38,13 +38,14 @@ async function fetchVercelProjects(): Promise<VercelProject[]> {
   }
 }
 
-async function getVercelStatus(projectId: string): Promise<ServiceStatus> {
+async function getVercelStatus(projectName: string): Promise<ServiceStatus> {
   if (!VERCEL_TOKEN) return 'unknown'
 
   try {
+    // Use v6 deployments API with projectId filter (works with project name)
     const teamParam = VERCEL_TEAM_ID ? `&teamId=${VERCEL_TEAM_ID}` : ''
     const res = await fetch(
-      `https://api.vercel.com/v9/projects/${projectId}/deployments?limit=1${teamParam}`,
+      `https://api.vercel.com/v6/deployments?projectId=${projectName}&limit=1&target=production${teamParam}`,
       {
         headers: { Authorization: `Bearer ${VERCEL_TOKEN}` },
         next: { revalidate: 30 }
@@ -58,7 +59,9 @@ async function getVercelStatus(projectId: string): Promise<ServiceStatus> {
 
     if (!deployment) return 'unknown'
 
-    switch (deployment.state) {
+    // v6 API uses readyState instead of state
+    const state = deployment.readyState || deployment.state
+    switch (state) {
       case 'READY':
         return 'live'
       case 'BUILDING':
@@ -131,7 +134,7 @@ export async function GET() {
           : undefined
 
         const [vercelStatus, githubStatus] = await Promise.all([
-          getVercelStatus(project.id),
+          getVercelStatus(project.name),
           githubRepo ? getGitHubActionsStatus(githubRepo) : Promise.resolve('unknown' as ServiceStatus)
         ])
 
