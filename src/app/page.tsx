@@ -70,6 +70,8 @@ export default function DashboardPage() {
   const [healthChecks, setHealthChecks] = useState<HealthCheckResult[]>([])
   const [deployingProject, setDeployingProject] = useState<string | null>(null)
   const [triggeringProject, setTriggeringProject] = useState<string | null>(null)
+  const [maintenanceStatuses, setMaintenanceStatuses] = useState<Record<string, boolean>>({})
+  const [togglingMaintenance, setTogglingMaintenance] = useState<string | null>(null)
 
   // Load hidden projects from localStorage
   useEffect(() => {
@@ -145,6 +147,17 @@ export default function DashboardPage() {
         const healthData = await healthRes.json()
         setHealthChecks(healthData)
       }
+
+      // Fetch maintenance statuses
+      const maintenanceRes = await fetch('/api/projects/maintenance')
+      if (maintenanceRes.ok) {
+        const maintenanceData = await maintenanceRes.json()
+        const statuses: Record<string, boolean> = {}
+        for (const [projectId, data] of Object.entries(maintenanceData)) {
+          statuses[projectId] = (data as { enabled: boolean }).enabled
+        }
+        setMaintenanceStatuses(statuses)
+      }
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error)
       toast.error('Failed to fetch dashboard data')
@@ -174,6 +187,35 @@ export default function DashboardPage() {
   const handleLogout = async () => {
     document.cookie = 'devops-auth=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT'
     window.location.href = '/login'
+  }
+
+  const handleToggleMaintenance = async (projectId: string, projectName: string) => {
+    setTogglingMaintenance(projectId)
+    const currentStatus = maintenanceStatuses[projectId] ?? false
+    try {
+      const res = await fetch('/api/projects/maintenance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId,
+          projectName,
+          enabled: !currentStatus
+        })
+      })
+      if (res.ok) {
+        setMaintenanceStatuses(prev => ({
+          ...prev,
+          [projectId]: !currentStatus
+        }))
+        toast.success(currentStatus ? `${projectName} 점검 해제` : `${projectName} 점검 모드 설정`)
+      } else {
+        toast.error('점검 모드 변경 실패')
+      }
+    } catch {
+      toast.error('점검 모드 변경 실패')
+    } finally {
+      setTogglingMaintenance(null)
+    }
   }
 
   const handleDeploy = async (projectId: string) => {
@@ -367,12 +409,15 @@ export default function DashboardPage() {
                 githubStatus={projectStatuses[project.id]?.github || 'unknown'}
                 supabaseStatus={projectStatuses[project.id]?.supabase || 'unknown'}
                 hasGitHub={!!project.githubRepo}
+                maintenance={maintenanceStatuses[project.id] ?? false}
                 onDeploy={() => handleDeploy(project.id)}
                 onTriggerAction={() => handleTriggerAction(project.id)}
+                onToggleMaintenance={() => handleToggleMaintenance(project.id, project.name)}
                 onHide={() => handleHideProject(project.id)}
                 loading={loading}
                 deploying={deployingProject === project.id}
                 triggering={triggeringProject === project.id}
+                togglingMaintenance={togglingMaintenance === project.id}
               />
             ))}
           </div>

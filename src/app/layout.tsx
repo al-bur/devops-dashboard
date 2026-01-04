@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
+import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,11 +14,27 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#10B981",
+};
+
 export const metadata: Metadata = {
   title: "DevOps Dashboard",
-  description: "Monitor all your projects in one place - Vercel, GitHub Actions, Supabase",
+  description:
+    "Monitor all your projects in one place - Vercel, GitHub Actions, Supabase",
+  manifest: "/manifest.webmanifest",
   icons: {
     icon: "/icon.svg",
+    apple: "/apple-icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "DevOps",
   },
   metadataBase: new URL("https://devops-dashboard-pi.vercel.app"),
   openGraph: {
@@ -51,6 +68,7 @@ export default function RootLayout({
       >
         {children}
         <Toaster />
+        <PWAInstallPrompt />
       </body>
     </html>
   );

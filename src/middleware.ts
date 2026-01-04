@@ -7,8 +7,8 @@ const publicPaths = ['/login', '/icon.svg', '/robots.txt']
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Allow all API auth routes
-  if (pathname.startsWith('/api/auth')) {
+  // Allow all API routes
+  if (pathname.startsWith('/api')) {
     return NextResponse.next()
   }
 

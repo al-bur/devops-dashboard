@@ -13,7 +13,8 @@ import {
   Loader2,
   Circle,
   EyeOff,
-  Minus
+  Minus,
+  Wrench
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -26,12 +27,15 @@ interface ProjectCardProps {
   githubStatus?: ServiceStatus
   supabaseStatus?: ServiceStatus
   hasGitHub?: boolean
+  maintenance?: boolean
   onDeploy?: () => void
   onTriggerAction?: () => void
+  onToggleMaintenance?: () => void
   onHide?: () => void
   loading?: boolean
   deploying?: boolean
   triggering?: boolean
+  togglingMaintenance?: boolean
 }
 
 function StatusIcon({ status }: { status: ServiceStatus }) {
@@ -77,12 +81,15 @@ export function ProjectCard({
   githubStatus = 'unknown',
   supabaseStatus = 'unknown',
   hasGitHub = true,
+  maintenance = false,
   onDeploy,
   onTriggerAction,
+  onToggleMaintenance,
   onHide,
   loading,
   deploying,
-  triggering
+  triggering,
+  togglingMaintenance
 }: ProjectCardProps) {
   if (loading) {
     return (
@@ -105,7 +112,14 @@ export function ProjectCard({
     <Card className="bg-card border-border hover:border-primary/30 transition-colors">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold">{name}</CardTitle>
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-lg font-semibold">{name}</CardTitle>
+            {maintenance && (
+              <Badge variant="outline" className="border-amber-500/50 text-amber-500 bg-amber-500/10 text-xs">
+                점검중
+              </Badge>
+            )}
+          </div>
           <StatusBadge status={vercelStatus} />
         </div>
         {url && (
@@ -167,8 +181,25 @@ export function ProjectCard({
         <Button
           variant="ghost"
           size="sm"
+          onClick={onToggleMaintenance}
+          disabled={togglingMaintenance}
+          className={cn(
+            "ml-auto",
+            maintenance ? "text-amber-500 hover:text-amber-600" : "text-muted-foreground"
+          )}
+          title={maintenance ? "점검 모드 해제" : "점검 모드 설정"}
+        >
+          {togglingMaintenance ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Wrench className="h-4 w-4" />
+          )}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={onHide}
-          className="ml-auto text-muted-foreground hover:text-destructive"
+          className="text-muted-foreground hover:text-destructive"
         >
           <EyeOff className="h-4 w-4" />
         </Button>
