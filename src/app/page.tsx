@@ -39,7 +39,7 @@ interface DashboardStats {
   totalProjects: number
 }
 
-type ServiceStatus = 'live' | 'building' | 'error' | 'unknown'
+type ServiceStatus = 'live' | 'building' | 'error' | 'unknown' | 'na'
 
 interface ProjectStatus {
   [projectId: string]: {
@@ -350,6 +350,7 @@ export default function DashboardPage() {
                 vercelStatus={projectStatuses[project.id]?.vercel || 'unknown'}
                 githubStatus={projectStatuses[project.id]?.github || 'unknown'}
                 supabaseStatus={projectStatuses[project.id]?.supabase || 'unknown'}
+                hasGitHub={!!project.githubRepo}
                 onDeploy={() => handleDeploy(project.id)}
                 onTriggerAction={() => handleTriggerAction(project.id)}
                 onHide={() => handleHideProject(project.id)}

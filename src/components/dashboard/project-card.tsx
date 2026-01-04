@@ -12,11 +12,12 @@ import {
   XCircle,
   Loader2,
   Circle,
-  EyeOff
+  EyeOff,
+  Minus
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-type ServiceStatus = 'live' | 'building' | 'error' | 'unknown'
+type ServiceStatus = 'live' | 'building' | 'error' | 'unknown' | 'na'
 
 interface ProjectCardProps {
   name: string
@@ -24,6 +25,7 @@ interface ProjectCardProps {
   vercelStatus?: ServiceStatus
   githubStatus?: ServiceStatus
   supabaseStatus?: ServiceStatus
+  hasGitHub?: boolean
   onDeploy?: () => void
   onTriggerAction?: () => void
   onHide?: () => void
@@ -40,6 +42,8 @@ function StatusIcon({ status }: { status: ServiceStatus }) {
       return <Loader2 className="h-4 w-4 text-yellow-500 animate-spin" />
     case 'error':
       return <XCircle className="h-4 w-4 text-red-500" />
+    case 'na':
+      return <Minus className="h-4 w-4 text-muted-foreground/50" />
     default:
       return <Circle className="h-4 w-4 text-muted-foreground" />
   }
@@ -54,13 +58,14 @@ function StatusBadge({ status }: { status: ServiceStatus }) {
         status === 'live' && "border-emerald-500/50 text-emerald-500 bg-emerald-500/10",
         status === 'building' && "border-yellow-500/50 text-yellow-500 bg-yellow-500/10",
         status === 'error' && "border-red-500/50 text-red-500 bg-red-500/10",
-        status === 'unknown' && "border-muted-foreground/50 text-muted-foreground"
+        (status === 'unknown' || status === 'na') && "border-muted-foreground/50 text-muted-foreground"
       )}
     >
       {status === 'live' && 'Live'}
       {status === 'building' && 'Building'}
       {status === 'error' && 'Error'}
       {status === 'unknown' && 'Unknown'}
+      {status === 'na' && 'N/A'}
     </Badge>
   )
 }
@@ -71,6 +76,7 @@ export function ProjectCard({
   vercelStatus = 'unknown',
   githubStatus = 'unknown',
   supabaseStatus = 'unknown',
+  hasGitHub = true,
   onDeploy,
   onTriggerAction,
   onHide,
@@ -148,7 +154,8 @@ export function ProjectCard({
           variant="ghost"
           size="sm"
           onClick={onTriggerAction}
-          disabled={triggering}
+          disabled={triggering || !hasGitHub}
+          title={!hasGitHub ? 'GitHub not connected' : undefined}
         >
           {triggering ? (
             <Loader2 className="h-4 w-4 mr-1 animate-spin" />

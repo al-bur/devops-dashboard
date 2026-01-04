@@ -4,7 +4,7 @@ const VERCEL_TOKEN = process.env.VERCEL_TOKEN
 const VERCEL_TEAM_ID = process.env.VERCEL_TEAM_ID
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN
 
-type ServiceStatus = 'live' | 'building' | 'error' | 'unknown'
+type ServiceStatus = 'live' | 'building' | 'error' | 'unknown' | 'na'
 
 interface VercelProject {
   id: string
@@ -81,7 +81,6 @@ async function getVercelStatus(projectName: string): Promise<ServiceStatus> {
 
 async function getGitHubActionsStatus(repo: string): Promise<ServiceStatus> {
   if (!GITHUB_TOKEN) {
-    console.log('GITHUB_TOKEN not found')
     return 'unknown'
   }
 
@@ -98,7 +97,6 @@ async function getGitHubActionsStatus(repo: string): Promise<ServiceStatus> {
     )
 
     if (!res.ok) {
-      console.log(`GitHub API error for ${repo}: ${res.status}`)
       return 'unknown'
     }
 
@@ -106,11 +104,8 @@ async function getGitHubActionsStatus(repo: string): Promise<ServiceStatus> {
     const run = data.workflow_runs?.[0]
 
     if (!run) {
-      console.log(`No workflow runs for ${repo}`)
       return 'unknown'
     }
-
-    console.log(`GitHub ${repo}: status=${run.status}, conclusion=${run.conclusion}`)
 
     if (run.status === 'in_progress' || run.status === 'queued') {
       return 'building'
@@ -146,7 +141,7 @@ export async function GET() {
 
         const [vercelStatus, githubStatus] = await Promise.all([
           getVercelStatus(project.name),
-          githubRepo ? getGitHubActionsStatus(githubRepo) : Promise.resolve('unknown' as ServiceStatus)
+          githubRepo ? getGitHubActionsStatus(githubRepo) : Promise.resolve('na' as ServiceStatus)
         ])
 
         statuses[project.id] = {
