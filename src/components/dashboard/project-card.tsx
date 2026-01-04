@@ -1,9 +1,18 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu"
 import {
   RefreshCw,
   Play,
@@ -14,22 +23,32 @@ import {
   Circle,
   EyeOff,
   Minus,
-  Wrench
+  Wrench,
+  ChevronDown,
+  Github
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 type ServiceStatus = 'live' | 'building' | 'error' | 'unknown' | 'na'
 
+interface WorkflowInfo {
+  id: number
+  name: string
+  path: string
+  state: string
+}
+
 interface ProjectCardProps {
   name: string
   url?: string
+  githubRepo?: string
   vercelStatus?: ServiceStatus
   githubStatus?: ServiceStatus
   supabaseStatus?: ServiceStatus
   hasGitHub?: boolean
   maintenance?: boolean
   onDeploy?: () => void
-  onTriggerAction?: () => void
+  onTriggerAction?: (workflow?: string) => void
   onToggleMaintenance?: () => void
   onHide?: () => void
   loading?: boolean
@@ -77,6 +96,7 @@ function StatusBadge({ status }: { status: ServiceStatus }) {
 export function ProjectCard({
   name,
   url,
+  githubRepo,
   vercelStatus = 'unknown',
   githubStatus = 'unknown',
   supabaseStatus = 'unknown',
@@ -91,6 +111,36 @@ export function ProjectCard({
   triggering,
   togglingMaintenance
 }: ProjectCardProps) {
+  const [workflows, setWorkflows] = useState<WorkflowInfo[]>([])
+  const [loadingWorkflows, setLoadingWorkflows] = useState(false)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+
+  // Fetch workflows when dropdown opens
+  useEffect(() => {
+    if (dropdownOpen && hasGitHub && githubRepo && workflows.length === 0) {
+      setLoadingWorkflows(true)
+      fetch(`/api/github/workflows?repo=${encodeURIComponent(githubRepo)}`)
+        .then(res => res.json())
+        .then(data => {
+          setWorkflows(data.workflows || [])
+        })
+        .catch(() => {
+          setWorkflows([])
+        })
+        .finally(() => {
+          setLoadingWorkflows(false)
+        })
+    }
+  }, [dropdownOpen, hasGitHub, githubRepo, workflows.length])
+
+  const handleRunWorkflow = (workflowPath?: string) => {
+    const workflowFile = workflowPath?.split('/').pop()
+    onTriggerAction?.(workflowFile)
+    setDropdownOpen(false)
+  }
+
+  const githubUrl = githubRepo ? `https://github.com/${githubRepo}` : undefined
+
   if (loading) {
     return (
       <Card className="bg-card border-border">
@@ -118,6 +168,17 @@ export function ProjectCard({
               <Badge variant="outline" className="border-amber-500/50 text-amber-500 bg-amber-500/10 text-xs">
                 점검중
               </Badge>
+            )}
+            {githubUrl && (
+              <a
+                href={githubUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-foreground transition-colors"
+                title="Open GitHub repository"
+              >
+                <Github className="h-4 w-4" />
+              </a>
             )}
           </div>
           <StatusBadge status={vercelStatus} />
@@ -164,20 +225,58 @@ export function ProjectCard({
           )}
           Deploy
         </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onTriggerAction}
-          disabled={triggering || !hasGitHub}
-          title={!hasGitHub ? 'GitHub not connected' : undefined}
-        >
-          {triggering ? (
-            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-          ) : (
-            <Play className="h-4 w-4 mr-1" />
-          )}
-          Run Action
-        </Button>
+
+        {/* Workflow Selection Dropdown */}
+        <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={triggering || !hasGitHub}
+              title={!hasGitHub ? 'GitHub not connected' : undefined}
+            >
+              {triggering ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <Play className="h-4 w-4 mr-1" />
+              )}
+              Action
+              <ChevronDown className="h-3 w-3 ml-1" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">
+              Select Workflow
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {loadingWorkflows ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
+            ) : workflows.length === 0 ? (
+              <>
+                <DropdownMenuItem onClick={() => handleRunWorkflow()}>
+                  <Play className="h-4 w-4 mr-2" />
+                  Run Default
+                </DropdownMenuItem>
+                <p className="text-xs text-muted-foreground px-2 py-1">
+                  No workflows found
+                </p>
+              </>
+            ) : (
+              workflows.map((workflow) => (
+                <DropdownMenuItem
+                  key={workflow.id}
+                  onClick={() => handleRunWorkflow(workflow.path)}
+                >
+                  <Play className="h-4 w-4 mr-2" />
+                  <span className="truncate">{workflow.name}</span>
+                </DropdownMenuItem>
+              ))
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <Button
           variant="ghost"
           size="sm"

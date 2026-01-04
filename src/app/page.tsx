@@ -16,7 +16,8 @@ import {
   Server,
   Eye,
   Settings,
-  LogOut
+  LogOut,
+  Bell
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -25,6 +26,8 @@ import { ProjectCard } from "@/components/dashboard/project-card"
 import { ErrorLogViewer } from "@/components/dashboard/error-log"
 import { UserList } from "@/components/dashboard/user-list"
 import { HealthCheck } from "@/components/dashboard/health-check"
+import { NotificationPanel } from "@/components/dashboard/notification-panel"
+import { SendPushDialog } from "@/components/dashboard/send-push-dialog"
 
 import type {
   Project,
@@ -238,7 +241,7 @@ export default function DashboardPage() {
     }
   }
 
-  const handleTriggerAction = async (projectId: string) => {
+  const handleTriggerAction = async (projectId: string, workflow?: string) => {
     setTriggeringProject(projectId)
     try {
       const project = projects.find(p => p.id === projectId)
@@ -249,11 +252,12 @@ export default function DashboardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           repo: project.githubRepo,
-          workflow: 'deploy.yml' // Default workflow
+          workflow // 워크플로우 지정 시 해당 워크플로우 실행, 미지정 시 자동 감지
         })
       })
       if (res.ok) {
-        toast.success('GitHub Action triggered successfully')
+        const workflowName = workflow || 'default'
+        toast.success(`GitHub Action "${workflowName}" triggered`)
       } else {
         toast.error('Failed to trigger GitHub Action')
       }
@@ -277,6 +281,7 @@ export default function DashboardPage() {
               <h1 className="text-xl font-bold">DevOps Dashboard</h1>
             </div>
             <div className="flex items-center gap-2">
+              <SendPushDialog />
               <Button
                 variant="outline"
                 size="sm"
@@ -405,13 +410,14 @@ export default function DashboardPage() {
                 key={project.id}
                 name={project.name}
                 url={project.url}
+                githubRepo={project.githubRepo}
                 vercelStatus={projectStatuses[project.id]?.vercel || 'unknown'}
                 githubStatus={projectStatuses[project.id]?.github || 'unknown'}
                 supabaseStatus={projectStatuses[project.id]?.supabase || 'unknown'}
                 hasGitHub={!!project.githubRepo}
                 maintenance={maintenanceStatuses[project.id] ?? false}
                 onDeploy={() => handleDeploy(project.id)}
-                onTriggerAction={() => handleTriggerAction(project.id)}
+                onTriggerAction={(workflow) => handleTriggerAction(project.id, workflow)}
                 onToggleMaintenance={() => handleToggleMaintenance(project.id, project.name)}
                 onHide={() => handleHideProject(project.id)}
                 loading={loading}
@@ -427,8 +433,12 @@ export default function DashboardPage() {
 
         {/* Tabs Section */}
         <section>
-          <Tabs defaultValue="health" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
+          <Tabs defaultValue="notifications" className="w-full">
+            <TabsList className="grid w-full grid-cols-4 lg:w-[500px]">
+              <TabsTrigger value="notifications" className="flex items-center gap-2">
+                <Bell className="h-4 w-4" />
+                Notifications
+              </TabsTrigger>
               <TabsTrigger value="health" className="flex items-center gap-2">
                 <Activity className="h-4 w-4" />
                 Health
@@ -442,6 +452,10 @@ export default function DashboardPage() {
                 Logs
               </TabsTrigger>
             </TabsList>
+
+            <TabsContent value="notifications" className="mt-4">
+              <NotificationPanel />
+            </TabsContent>
 
             <TabsContent value="health" className="mt-4">
               <Card>
