@@ -9,7 +9,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { password } = await request.json()
+    const body = await request.json()
+    const password = body?.password
+
+    if (!password) {
+      return NextResponse.json({ error: 'Password required' }, { status: 400 })
+    }
 
     if (password === ADMIN_PASSWORD) {
       const cookieStore = await cookies()
@@ -27,7 +32,8 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ error: 'Invalid password' }, { status: 401 })
-  } catch {
-    return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+  } catch (error) {
+    console.error('Login error:', error)
+    return NextResponse.json({ error: 'Invalid request', details: String(error) }, { status: 400 })
   }
 }
