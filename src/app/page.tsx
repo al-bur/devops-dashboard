@@ -15,7 +15,8 @@ import {
   GitBranch,
   Server,
   Eye,
-  Settings
+  Settings,
+  LogOut
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -170,6 +171,11 @@ export default function DashboardPage() {
     toast.success('Dashboard refreshed')
   }
 
+  const handleLogout = async () => {
+    document.cookie = 'devops-auth=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT'
+    window.location.href = '/login'
+  }
+
   const handleDeploy = async (projectId: string) => {
     setDeployingProject(projectId)
     try {
@@ -228,15 +234,25 @@ export default function DashboardPage() {
               </div>
               <h1 className="text-xl font-bold">DevOps Dashboard</h1>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={refreshing}
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={refreshing}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLogout}
+                className="text-muted-foreground hover:text-destructive"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </header>
