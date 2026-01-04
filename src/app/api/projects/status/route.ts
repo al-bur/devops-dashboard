@@ -80,7 +80,10 @@ async function getVercelStatus(projectName: string): Promise<ServiceStatus> {
 }
 
 async function getGitHubActionsStatus(repo: string): Promise<ServiceStatus> {
-  if (!GITHUB_TOKEN) return 'unknown'
+  if (!GITHUB_TOKEN) {
+    console.log('GITHUB_TOKEN not found')
+    return 'unknown'
+  }
 
   try {
     const res = await fetch(
@@ -94,12 +97,20 @@ async function getGitHubActionsStatus(repo: string): Promise<ServiceStatus> {
       }
     )
 
-    if (!res.ok) return 'unknown'
+    if (!res.ok) {
+      console.log(`GitHub API error for ${repo}: ${res.status}`)
+      return 'unknown'
+    }
 
     const data = await res.json()
     const run = data.workflow_runs?.[0]
 
-    if (!run) return 'unknown'
+    if (!run) {
+      console.log(`No workflow runs for ${repo}`)
+      return 'unknown'
+    }
+
+    console.log(`GitHub ${repo}: status=${run.status}, conclusion=${run.conclusion}`)
 
     if (run.status === 'in_progress' || run.status === 'queued') {
       return 'building'
