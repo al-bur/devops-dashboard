@@ -17,7 +17,9 @@ import {
   Eye,
   Settings,
   LogOut,
-  Bell
+  Bell,
+  Wrench,
+  Loader2
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -75,6 +77,7 @@ export default function DashboardPage() {
   const [triggeringProject, setTriggeringProject] = useState<string | null>(null)
   const [maintenanceStatuses, setMaintenanceStatuses] = useState<Record<string, boolean>>({})
   const [togglingMaintenance, setTogglingMaintenance] = useState<string | null>(null)
+  const [bulkMaintenanceLoading, setBulkMaintenanceLoading] = useState<'on' | 'off' | null>(null)
 
   // Load hidden projects from localStorage
   useEffect(() => {
@@ -221,6 +224,56 @@ export default function DashboardPage() {
     }
   }
 
+  const handleBulkMaintenance = async (enable: boolean) => {
+    setBulkMaintenanceLoading(enable ? 'on' : 'off')
+    const targetProjects = visibleProjects.filter(p =>
+      (maintenanceStatuses[p.id] ?? false) !== enable
+    )
+
+    if (targetProjects.length === 0) {
+      toast.info(enable ? '이미 모든 프로젝트가 점검중입니다' : '점검중인 프로젝트가 없습니다')
+      setBulkMaintenanceLoading(null)
+      return
+    }
+
+    let successCount = 0
+    let failCount = 0
+
+    for (const project of targetProjects) {
+      try {
+        const res = await fetch('/api/projects/maintenance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            projectId: project.id,
+            projectName: project.name,
+            enabled: enable
+          })
+        })
+        if (res.ok) {
+          setMaintenanceStatuses(prev => ({
+            ...prev,
+            [project.id]: enable
+          }))
+          successCount++
+        } else {
+          failCount++
+        }
+      } catch {
+        failCount++
+      }
+    }
+
+    if (failCount === 0) {
+      toast.success(enable
+        ? `${successCount}개 프로젝트 점검 모드 설정 완료`
+        : `${successCount}개 프로젝트 점검 해제 완료`)
+    } else {
+      toast.warning(`${successCount}개 성공, ${failCount}개 실패`)
+    }
+    setBulkMaintenanceLoading(null)
+  }
+
   const handleDeploy = async (projectId: string) => {
     setDeployingProject(projectId)
     try {
@@ -359,17 +412,47 @@ export default function DashboardPage() {
                 ({visibleProjects.length})
               </span>
             </h2>
-            {hiddenProjectsList.length > 0 && (
+            <div className="flex items-center gap-2">
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                onClick={() => setShowHiddenPanel(!showHiddenPanel)}
-                className="text-muted-foreground"
+                onClick={() => handleBulkMaintenance(true)}
+                disabled={bulkMaintenanceLoading !== null}
+                className="text-amber-600 border-amber-500/50 hover:bg-amber-500/10"
               >
-                <Settings className="h-4 w-4 mr-1" />
-                {hiddenProjectsList.length} hidden
+                {bulkMaintenanceLoading === 'on' ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <Wrench className="h-4 w-4 mr-1" />
+                )}
+                전체 점검
               </Button>
-            )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleBulkMaintenance(false)}
+                disabled={bulkMaintenanceLoading !== null}
+                className="text-emerald-600 border-emerald-500/50 hover:bg-emerald-500/10"
+              >
+                {bulkMaintenanceLoading === 'off' ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <Wrench className="h-4 w-4 mr-1" />
+                )}
+                전체 해제
+              </Button>
+              {hiddenProjectsList.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowHiddenPanel(!showHiddenPanel)}
+                  className="text-muted-foreground"
+                >
+                  <Settings className="h-4 w-4 mr-1" />
+                  {hiddenProjectsList.length} hidden
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Hidden Projects Panel */}

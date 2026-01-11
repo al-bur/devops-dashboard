@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 // GET - Get all project maintenance statuses
 export async function GET() {
@@ -48,8 +49,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'projectId and projectName required' }, { status: 400 })
     }
 
-    // Upsert maintenance status
-    const { error } = await supabase
+    // Upsert maintenance status (use admin client for write access)
+    const { error } = await supabaseAdmin
       .from('project_maintenance')
       .upsert({
         project_id: projectId,
